@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import org.osate.aadl.evaluator.evolution.Binding;
@@ -21,6 +23,8 @@ import org.osate.aadl.evaluator.project.Property;
 
 public abstract class BindingRunnable implements Runnable
 {
+    private static final Logger LOG = Logger.getLogger( BindingRunnable.class.getName() );
+    
     private final JPanel panel;
 
     public BindingRunnable( final JPanel panel )
@@ -59,9 +63,9 @@ public abstract class BindingRunnable implements Runnable
         
         findOtherBusInSystem( evolution , replacement );
         
-        removeAndAddCandidates( evolution );                // remove old component and add news
+        removeAndAddCandidates( evolution );  // remove old component and add news
         
-        addChanges( replacement );           // add all connections
+        addChanges( replacement );            // add all connections
         addAvaliables( featureAvaliable );
     }
     
@@ -116,6 +120,8 @@ public abstract class BindingRunnable implements Runnable
     
     private List<Relationship> suggestions( List<Binding> exists , Map<Candidate,List<Feature>> avaliable )
     {
+        LOG.log( Level.INFO , "Combining exists with features avaliables..." );
+        
         Map<Candidate,List<Feature>> copy = new HashMap<>( avaliable );
         List<Relationship> replacement = new LinkedList<>();
         
@@ -157,6 +163,11 @@ public abstract class BindingRunnable implements Runnable
             
             if( changes.size() == 1 )
             {
+                LOG.log( Level.INFO , "Relationship only one is possible: {0} and {1}", new Object[]{ 
+                    binding.getConnection().getName() , 
+                    changes.get( 0 ) 
+                } );
+                
                 replacement.add( 
                     new Relationship( binding , changes.get( 0 ) ) 
                 );
@@ -188,6 +199,11 @@ public abstract class BindingRunnable implements Runnable
                         Binding cloned = binding.clone();
                         cloned.setConnection( null );
                         
+                        LOG.log( Level.INFO , "Relationship selected: {0} and {1}", new Object[]{ 
+                            binding.getConnection().getName() , 
+                            c2 
+                        } );
+                        
                         replacement.add( new Relationship( binding , c2 ) );
                         
                         avaliable.get( c2.candidate ).remove( c2.feature );
@@ -196,6 +212,7 @@ public abstract class BindingRunnable implements Runnable
             }
             else
             {
+                LOG.log( Level.INFO , "Relationship not found: {0}", binding.getConnection().getName() );
                 replacement.add( new Relationship( binding , null ) );
             }
         }
@@ -211,8 +228,10 @@ public abstract class BindingRunnable implements Runnable
      */
     private void suggestionsWrapper( List<Relationship> replacement , Map<Candidate,List<Feature>> avaliable )
     {
+        LOG.log( Level.INFO , "Suggestion of a wrapper..." );
         if( avaliable.isEmpty() )
         {
+            LOG.log( Level.INFO , "nops, all is OK!" );
             return ;
         }
         
@@ -275,10 +294,20 @@ public abstract class BindingRunnable implements Runnable
     
     private Map<Candidate,List<Feature>> getFeatureAvaliable( Evolution evolution )
     {
+        LOG.log( Level.INFO , "Looking for features avaiables..." );
         Map<Candidate,List<Feature>> avaliable = new HashMap<>();
         
         for( Candidate candidate : evolution.getCandidates() )
         {
+            LOG.log( 
+                Level.INFO , 
+                "candidate: {0} , features: {1}" , 
+                new Object[]{
+                    candidate.getSubComponentName() , 
+                    candidate.getComponent().getFeaturesAll().values() 
+                }
+            );
+            
             avaliable.put( 
                 candidate , 
                 new LinkedList<>(
@@ -320,13 +349,13 @@ public abstract class BindingRunnable implements Runnable
                 
                 if( wasItUsed( sub , relationship ) )
                 {
-                    System.out.println( "is was used: " + t1 + " | " + t2 );
+                    //System.out.println( "is was used: " + t1 + " | " + t2 );
                     continue ;
                 }
                 
                 if( !t1.equalsIgnoreCase( t2 ) )
                 {
-                    System.out.println( "é diferente: " + t1 + " | " + t2 );
+                    //System.out.println( "é diferente: " + t1 + " | " + t2 );
                     continue;
                 }
                 
@@ -368,8 +397,10 @@ public abstract class BindingRunnable implements Runnable
     
     private List<Binding> findAll( Evolution evolution , Component component )
     {
+        LOG.log( Level.INFO , "Looking for connections..." );
         List<Binding> bindinds = findAllConnections( evolution , component );
         
+        LOG.log( Level.INFO , "Looking for BUSES and CPUs linked..." );
         for( Binding binding : bindinds )
         {
             if( binding.getConnection().getSubcomponentA().isBus() 
@@ -410,10 +441,12 @@ public abstract class BindingRunnable implements Runnable
         {
             if( evolution.getDeclarations().contains( connection.getSubcomponentA() ) )
             {
+                LOG.log( Level.INFO , "finded: {0}" , connection );
                 exists.add( new Binding( connection , true ) );
             }
             else if( evolution.getDeclarations().contains( connection.getSubcomponentB() ) )
             {
+                LOG.log( Level.INFO , "finded: {0}" , connection );
                 exists.add( new Binding( connection , false ) );
             }
         }
@@ -442,6 +475,10 @@ public abstract class BindingRunnable implements Runnable
                 binding.setPartA( 
                     change.getCandidateName() + "." + change.feature.getName()
                 );
+            }
+            else
+            {
+                binding.setPartA( "" );
             }
         }
 
